@@ -1,19 +1,22 @@
 class SudokuSolver:
 
+    # Sudoku configuration
     SUDOKU_SIZE = 9
-    HEURISTIC_GOAL = SUDOKU_SIZE*3
+    # Algorithm configuration
+    HEURISTIC_GOAL = SUDOKU_SIZE * 3
+    POPULATION_NUM = 1024
     MUTATION_RATE = 0.05
 
-    def __init__(self, matrix, population_num=1024):
+    def __init__(self, matrix):
         self.mat = matrix
-        self.ppl_num = population_num
+        self.fixed_mat = self.MaskFixedMatrix()
         self.ppl_list = []
 
     # Tai
     def AlgorithmRun(self):
         self.InitialPopulationGenerator()
 
-        for idx in range(0, self.ppl_num):
+        for idx in range(0, self.POPULATION_NUM):
             if self.HeuristicFunction(self.ppl_list[idx]) == self.HEURISTIC_GOAL:
                 print(self.ppl_list[idx])
                 return
@@ -34,6 +37,11 @@ class SudokuSolver:
     def InitialPopulationGenerator(self):
         # TODO: generate population
         # ppl_list.append(new_ppl)
+        for idx in range(0, self.POPULATION_NUM):
+            for col_idx in range(0, self.SUDOKU_SIZE):
+                for row_idx in range(0, self.SUDOKU_SIZE):
+                    pass
+            pass
         pass
 
     # Duong
@@ -58,6 +66,15 @@ class SudokuSolver:
     def Tournament(self, mat1, mat2):
         # return mat_winner
         pass
+
+    # Miscellaneous
+    def MaskFixedMatrix(self):
+        ret_mat = []
+        for i in range(len(self.mat)):
+            for j in range(len(self.mat[i])):
+                if self.mat[i][j] != 0:
+                    ret_mat[i][j] = 1
+        return ret_mat
 
 
 initial_mat = [[1, 2, 3, 4, 5, 6, 7, 8, 9],
