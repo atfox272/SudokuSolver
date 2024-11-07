@@ -48,18 +48,18 @@ class SudokuSolver:
     def HeuristicFunction(self, mat):
         score = 0
 
-        # Check rows
+        # Kiểm tra hàng
         for row in mat:
             score += len(set(row))
 
-        # Check columns
+        # Kiểm tra cột
         for col in range(self.SUDOKU_SIZE):
             col_set = set()
             for row in range(self.SUDOKU_SIZE):
                 col_set.add(mat[row][col])
             score += len(col_set)
 
-        # Check 3x3 grids
+        # Kiểm tra các ô 3x3
         for grid_row in range(0, self.SUDOKU_SIZE, 3):
             for grid_col in range(0, self.SUDOKU_SIZE, 3):
                 grid_set = set()
@@ -76,12 +76,79 @@ class SudokuSolver:
         pass
 
     # Duong
-    def CrossoverFunction(self, mat1, mat2):
-        pass
+    def CrossoverFunction(self, population_list):
+        new_population = []
+
+        while len(population_list) > 1:
+            # Lấy danh sách các chỉ số của population_list
+            indices = list(range(len(population_list)))
+
+            # Chọn ngẫu nhiên hai chỉ số khác nhau từ danh sách
+            idx1, idx2 = random.sample(indices, 2)
+
+            mat1 = population_list.pop(idx1)
+            # Nếu idx2 lớn hơn idx1, giảm idx2 đi 1 vì danh sách đã bị thay đổi sau khi pop idx1
+            if idx2 > idx1:
+                idx2 -= 1
+
+            # Lấy ma trận thứ hai từ danh sách
+            mat2 = population_list.pop(idx2)
+
+            # Chọn điểm cắt ngẫu nhiên theo cột (3 hoặc 6)
+            crossover_point = random.choice([3, 6])
+
+            # Tạo hai ma trận con mới
+            offspring1 = [row[:crossover_point] + row[crossover_point:] for row in mat1]
+            offspring2 = [row[:crossover_point] + row[crossover_point:] for row in mat2]
+
+            # Hoán đổi các phần của hai ma trận
+            for i in range(self.SUDOKU_SIZE):
+                offspring1[i] = mat1[i][:crossover_point] + mat2[i][crossover_point:]
+                offspring2[i] = mat2[i][:crossover_point] + mat1[i][crossover_point:]
+
+            # Thêm hai ma trận con mới vào danh sách dân số mới
+            new_population.append(offspring1)
+            new_population.append(offspring2)
+
+    # Nếu còn lại một ma trận trong danh sách, thêm nó vào dân số mới
+        if population_list:
+            new_population.append(population_list.pop())
+
+        return new_population
 
     # Duong
     def MutationFunction(self, mat):
-        pass
+        # Tạo tỉ lệ ngẫu nhiên
+        if random.random() > self.MUTATION_RATE:
+            return mat
+        # Chọn ngẫu nhiên một hàng
+        row = random.randint(0, self.SUDOKU_SIZE - 1)
+        
+        non_fixed_indices = []
+        # Tìm các chỉ số không cố định trong hàng
+        for col in range(self.SUDOKU_SIZE):
+            if self.fixed_mat[row][col] == 0:
+                non_fixed_indices.append(col)
+
+        if not non_fixed_indices:
+            return mat
+
+        empty_indices = []
+        # Tìm các chỉ số trống trong hàng
+        for col in non_fixed_indices:
+            if mat[row][col] == 0:
+                empty_indices.append(col)
+
+        # Nếu có chỉ số trống, chọn ngẫu nhiên một chỉ số và gán giá trị ngẫu nhiên từ 1 đến 9
+        if empty_indices:
+            col = random.choice(empty_indices)
+            mat[row][col] = random.randint(1, 9)
+        else:
+            # Nếu không có chỉ số trống, chọn ngẫu nhiên một chỉ số không cố định và gán giá trị
+            col = random.choice(non_fixed_indices)
+            mat[row][col] = random.randint(1, 9)
+
+        return mat
 
     # Tai
     def Tournament(self, mat1, mat2):
