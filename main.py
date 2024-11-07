@@ -7,35 +7,63 @@ class SudokuSolver:
     # Sudoku configuration
     SUDOKU_SIZE = 9
     # Algorithm configuration
-    HEURISTIC_GOAL = SUDOKU_SIZE * SUDOKU_SIZE * 9
-    POPULATION_NUM = 1024
+    HEURISTIC_GOAL = SUDOKU_SIZE * SUDOKU_SIZE * 3
     MUTATION_RATE = 0.05
+    POPULATION_NUM = 1024
+    TOURNAMENT_SIZE = 2
+    # Deep configuration
+    GENERATION_LIMIT = 100
 
     def __init__(self, matrix):
         self.mat = matrix
         self.fixed_mat = self.MaskFixedMatrix()
         self.ppl_list = []
+        self.generation_count = 0
+        self.highest_score_record = 0
+        self.highest_score_mat = [[0 for _ in range(self.SUDOKU_SIZE)] for _ in range(self.SUDOKU_SIZE)]
 
     # Tai
     def AlgorithmRun(self):
+        # Initial population phase
         self.InitialPopulationGenerator()
-
+        # Check if population list has the goal
         for idx in range(0, self.POPULATION_NUM):
+            # Record highest score
+            if self.HeuristicFunction(self.ppl_list[idx]) > self.highest_score_record:
+                self.highest_score_record = self.HeuristicFunction(self.ppl_list[idx])
+                self.highest_score_mat = copy.deepcopy(self.ppl_list[idx])
             if self.HeuristicFunction(self.ppl_list[idx]) == self.HEURISTIC_GOAL:
-                print(self.ppl_list[idx])
+                print(f'[INFO]: Found the goal at {self.generation_count}th')
+                self.PrintInfo()
                 return
-
         while True:
-            sel_list = []
-            # TODO: chon ra 1024 genes tu 1024 genes ban dau (Selection phase) -> sel_list
+            if self.generation_count >= self.GENERATION_LIMIT:
+                print(f'[INFO]: The number of generations is exceed limitation')
+                self.PrintInfo()
+                return
+            # Selection phase
+            sel_list = self.SelectionFunction()
 
-            cross_list = []
-            # TODO: chon ngau nhien lai tao lan luot 1024 successors -> cross_list
+            # Crossover phase
+            cross_list = self.CrossoverFunction(sel_list)
 
-            # rand_temp = random(self.MUTATION_RATE)
-            # TODO: Lan luot chon  1024 thang trong cross_list quyet dinh co mutation hay ko
-            # TODO: -> Cap nhat tat ca vo self.ppl_list
-            pass
+            # Mutation phase
+            for idx in range(0, self.POPULATION_NUM):
+                cross_list[idx] = self.MutationFunction(cross_list[idx])
+            self.ppl_list = cross_list
+
+            # Check if population list has the goal
+            for idx in range(self.POPULATION_NUM):
+                # Record highest score
+                if self.HeuristicFunction(self.ppl_list[idx]) > self.highest_score_record:
+                    self.highest_score_record = self.HeuristicFunction(self.ppl_list[idx])
+                    self.highest_score_mat = copy.deepcopy(self.ppl_list[idx])
+                # Check goal state
+                if self.HeuristicFunction(self.ppl_list[idx]) == self.HEURISTIC_GOAL:
+                    print(f'[INFO]: Found the goal at {self.generation_count}th')
+                    self.PrintInfo()
+                    return
+            self.generation_count += 1
 
     # Tai
     def InitialPopulationGenerator(self):
@@ -49,7 +77,8 @@ class SudokuSolver:
                 # Find all missing numbers
                 missing_numbers = list(set(range(1, 10)) - existing_numbers)
                 # Select the number to fill in (randomly)
-                fill_num = random.randint(0, min(len(zero_positions), 2))
+                # fill_num = random.randint(0, min(len(zero_positions), 2))
+                fill_num = min(len(zero_positions), 9)
                 numbers_to_insert = random.sample(missing_numbers, fill_num)
                 positions_to_fill = random.sample(zero_positions, fill_num)
                 # Fill in
@@ -85,8 +114,17 @@ class SudokuSolver:
 
     # Tai
     def SelectionFunction(self):
-        # Use self.ppl_list
-        pass
+        sel_list = []
+        # Host 1024 tournaments
+        for ppl_idx in range(self.POPULATION_NUM):
+            # 3-way Tournament: Select 3 individuals from 1024 randomly
+            selected_indices = random.sample(range(len(self.ppl_list)), self.TOURNAMENT_SIZE)
+            tournament = [self.ppl_list[i] for i in selected_indices]
+            # Select the best individual in the Tournament
+            best_individual = max(tournament, key=self.HeuristicFunction)
+            # Append to the selected list
+            sel_list.append(best_individual)
+        return sel_list
 
     # Duong
     def CrossoverFunction(self, population_list):
@@ -163,11 +201,6 @@ class SudokuSolver:
 
         return mat
 
-    # Tai
-    def Tournament(self, mat1, mat2):
-        # return mat_winner
-        pass
-
     # Miscellaneous
     def MaskFixedMatrix(self):
         ret_mat = [[0 for _ in range(self.SUDOKU_SIZE)] for _ in range(self.SUDOKU_SIZE)]
@@ -177,6 +210,13 @@ class SudokuSolver:
                     ret_mat[i][j] = 1
         return ret_mat
 
+    def PrintInfo(self):
+        print(f'[INFO]: Total generations: {self.generation_count}')
+        print(f'[INFO]: Highest score record: {self.highest_score_record}')
+        print(f'[INFO]: Highest score matrix:')
+        for row in range(len(self.highest_score_mat)):
+            print(self.highest_score_mat[row])
+        print('\n')
 
 class SudokuGenerator:
     def __init__(self):
@@ -247,23 +287,15 @@ for row in range(len(unfilled_sudoku_board[0])):
     print(unfilled_sudoku_board[row])
 print('\n')
 
-print('[INFO]: Population')
-sudoku_solver.InitialPopulationGenerator()
-for idx in range(len(sudoku_solver.ppl_list)):
-    for row in range(len(sudoku_solver.ppl_list[idx])):
-        print(sudoku_solver.ppl_list[idx][row])
-    print('\n')
+sudoku_solver.AlgorithmRun()
 
-# An example of a solved matrix
-sovle_mat =   [[4, 9, 6, 1, 5, 7, 8, 2, 3],
-               [2, 1, 8, 3, 9, 6, 7, 5, 4],
-               [7, 5, 3, 2, 8, 4, 1, 6, 9],
-               [6, 4, 9, 8, 3, 1, 2, 7, 5],
-               [5, 3, 1, 6, 7, 2, 9, 4, 8],
-               [8, 2, 7, 5, 4, 9, 6, 3, 1],
-               [9, 6, 2, 4, 1, 5, 3, 8, 7],
-               [1, 8, 5, 7, 6, 3, 4, 9, 2],
-               [3, 7, 4, 9, 2, 8, 5, 1, 6]]
+# print(selected_list)
+# for idx in range(len(selected_list)):
+#     for row in range(len(selected_list[idx])):
+#         print(selected_list[idx][row])
+#     print('\n')
+
+
 
 if __name__ == '__main__':
     print('PyCharm')
