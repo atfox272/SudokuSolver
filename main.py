@@ -3,16 +3,15 @@ import copy
 
 
 class SudokuSolver:
-
     # Sudoku configuration
     SUDOKU_SIZE = 9
     # Algorithm configuration
     HEURISTIC_GOAL = SUDOKU_SIZE * SUDOKU_SIZE * 3
-    MUTATION_RATE = 0.05
-    POPULATION_NUM = 1024
+    MUTATION_RATE = 0.2
+    POPULATION_NUM = 4096
     TOURNAMENT_SIZE = 2
     # Deep configuration
-    GENERATION_LIMIT = 100
+    GENERATION_LIMIT = 1000
 
     def __init__(self, matrix):
         self.mat = matrix
@@ -26,6 +25,7 @@ class SudokuSolver:
     def AlgorithmRun(self):
         # Initial population phase
         self.InitialPopulationGenerator()
+
         # Check if population list has the goal
         for idx in range(0, self.POPULATION_NUM):
             # Record highest score
@@ -77,8 +77,8 @@ class SudokuSolver:
                 # Find all missing numbers
                 missing_numbers = list(set(range(1, 10)) - existing_numbers)
                 # Select the number to fill in (randomly)
-                # fill_num = random.randint(0, min(len(zero_positions), 2))
-                fill_num = min(len(zero_positions), 9)
+                fill_num = random.randint(0, min(len(zero_positions), 2))
+                # fill_num = min(len(zero_positions), 9)
                 numbers_to_insert = random.sample(missing_numbers, fill_num)
                 positions_to_fill = random.sample(zero_positions, fill_num)
                 # Fill in
@@ -90,26 +90,25 @@ class SudokuSolver:
     def HeuristicFunction(self, mat):
         score = 0
 
-        # Kiểm tra hàng
+        # Kiểm tra hàng - bỏ qua số 0
         for row in mat:
-            score += len(set(row))
+            score += len({x for x in row if x != 0})
 
-        # Kiểm tra cột
+        # Kiểm tra cột - bỏ qua số 0
         for col in range(self.SUDOKU_SIZE):
-            col_set = set()
-            for row in range(self.SUDOKU_SIZE):
-                col_set.add(mat[row][col])
+            col_set = {mat[row][col] for row in range(self.SUDOKU_SIZE) if mat[row][col] != 0}
             score += len(col_set)
 
-        # Kiểm tra các ô 3x3
+        # Kiểm tra các ô 3x3 - bỏ qua số 0
         for grid_row in range(0, self.SUDOKU_SIZE, 3):
             for grid_col in range(0, self.SUDOKU_SIZE, 3):
                 grid_set = set()
                 for row in range(3):
                     for col in range(3):
-                        grid_set.add(mat[grid_row + row][grid_col + col])
+                        value = mat[grid_row + row][grid_col + col]
+                        if value != 0:
+                            grid_set.add(value)
                 score += len(grid_set)
-
         return score
 
     # Tai
@@ -145,23 +144,32 @@ class SudokuSolver:
             # Lấy ma trận thứ hai từ danh sách
             mat2 = population_list.pop(idx2)
 
-            # Chọn điểm cắt ngẫu nhiên theo cột (3 hoặc 6)
-            crossover_point = random.choice([3, 6])
+            # Chọn ngẫu nhiên giữa cắt theo hàng hoặc cột
+            if random.random() < 0.5:
+                # Cắt theo cột
+                crossover_point = random.choice([3, 6])
 
-            # Tạo hai ma trận con mới
-            offspring1 = [row[:crossover_point] + row[crossover_point:] for row in mat1]
-            offspring2 = [row[:crossover_point] + row[crossover_point:] for row in mat2]
+                # Tạo hai ma trận con mới
+                offspring1 = [row[:crossover_point] + row[crossover_point:] for row in mat1]
+                offspring2 = [row[:crossover_point] + row[crossover_point:] for row in mat2]
 
-            # Hoán đổi các phần của hai ma trận
-            for i in range(self.SUDOKU_SIZE):
-                offspring1[i] = mat1[i][:crossover_point] + mat2[i][crossover_point:]
-                offspring2[i] = mat2[i][:crossover_point] + mat1[i][crossover_point:]
+                # Hoán đổi các phần của hai ma trận
+                for i in range(self.SUDOKU_SIZE):
+                    offspring1[i] = mat1[i][:crossover_point] + mat2[i][crossover_point:]
+                    offspring2[i] = mat2[i][:crossover_point] + mat1[i][crossover_point:]
+            else:
+                # Cắt theo hàng
+                crossover_point = random.choice([3, 6])
+
+                # Tạo hai ma trận con mới
+                offspring1 = mat1[:crossover_point] + mat2[crossover_point:]
+                offspring2 = mat2[:crossover_point] + mat1[crossover_point:]
 
             # Thêm hai ma trận con mới vào danh sách dân số mới
             new_population.append(offspring1)
             new_population.append(offspring2)
 
-    # Nếu còn lại một ma trận trong danh sách, thêm nó vào dân số mới
+        # Nếu còn lại một ma trận trong danh sách, thêm nó vào dân số mới
         if population_list:
             new_population.append(population_list.pop())
 
@@ -172,32 +180,63 @@ class SudokuSolver:
         # Tạo tỉ lệ ngẫu nhiên
         if random.random() > self.MUTATION_RATE:
             return mat
-        # Chọn ngẫu nhiên một hàng
-        row = random.randint(0, self.SUDOKU_SIZE - 1)
-        
-        non_fixed_indices = []
-        # Tìm các chỉ số không cố định trong hàng
-        for col in range(self.SUDOKU_SIZE):
-            if self.fixed_mat[row][col] == 0:
-                non_fixed_indices.append(col)
 
-        if not non_fixed_indices:
-            return mat
+        if random.random() < 0.5:
+            # Chọn ngẫu nhiên một hàng
+            row = random.randint(0, self.SUDOKU_SIZE - 1)
 
-        empty_indices = []
-        # Tìm các chỉ số trống trong hàng
-        for col in non_fixed_indices:
-            if mat[row][col] == 0:
-                empty_indices.append(col)
+            non_fixed_indices = []
+            # Tìm các chỉ số không cố định trong hàng
+            for col in range(self.SUDOKU_SIZE):
+                if self.fixed_mat[row][col] == 0:
+                    non_fixed_indices.append(col)
 
-        # Nếu có chỉ số trống, chọn ngẫu nhiên một chỉ số và gán giá trị ngẫu nhiên từ 1 đến 9
-        if empty_indices:
-            col = random.choice(empty_indices)
-            mat[row][col] = random.randint(1, 9)
+            if not non_fixed_indices:
+                return mat
+
+            empty_indices = []
+            # Tìm các chỉ số trống trong hàng
+            for col in non_fixed_indices:
+                if mat[row][col] == 0:
+                    empty_indices.append(col)
+
+            # Nếu có chỉ số trống, chọn ngẫu nhiên một chỉ số và gán giá trị ngẫu nhiên từ 1 đến 9
+            if empty_indices:
+                col = random.choice(empty_indices)
+                mat[row][col] = random.randint(1, 9)
+            else:
+                if len(non_fixed_indices) >= 2:
+                    # Nếu không có chỉ số trống, chọn ngẫu nhiên một chỉ số không cố định và gán giá trị
+                    col1, col2 = random.sample(non_fixed_indices, 2)
+                    mat[row][col1], mat[row][col2] = mat[row][col2], mat[row][col1]
         else:
-            # Nếu không có chỉ số trống, chọn ngẫu nhiên một chỉ số không cố định và gán giá trị
-            col = random.choice(non_fixed_indices)
-            mat[row][col] = random.randint(1, 9)
+            # Chọn ngẫu nhiên một cột
+            col = random.randint(0, self.SUDOKU_SIZE - 1)
+
+            non_fixed_indices = []
+            # Tìm các chỉ số không cố định trong cột
+            for row in range(self.SUDOKU_SIZE):
+                if self.fixed_mat[row][col] == 0:
+                    non_fixed_indices.append(row)
+
+            if not non_fixed_indices:
+                return mat
+
+            empty_indices = []
+            # Tìm các chỉ số trống trong cột
+            for row in non_fixed_indices:
+                if mat[row][col] == 0:
+                    empty_indices.append(row)
+
+            # Nếu có chỉ số trống, chọn ngẫu nhiên một chỉ số và gán giá trị ngẫu nhiên từ 1 đến 9
+            if empty_indices:
+                row = random.choice(empty_indices)
+                mat[row][col] = random.randint(1, 9)
+            else:
+                if len(non_fixed_indices) >= 2:
+                    # Nếu không có chỉ số trống, chọn ngẫu nhiên một chỉ số không cố định và gán giá trị
+                    row1, row2 = random.sample(non_fixed_indices, 2)
+                    mat[row1][col], mat[row2][col] = mat[row2][col], mat[row1][col]
 
         return mat
 
@@ -217,6 +256,7 @@ class SudokuSolver:
         for row in range(len(self.highest_score_mat)):
             print(self.highest_score_mat[row])
         print('\n')
+
 
 class SudokuGenerator:
     def __init__(self):
@@ -275,6 +315,16 @@ class SudokuGenerator:
 sudoku_board = SudokuGenerator()
 filled_sudoku_board = sudoku_board.filled_sudoku_board
 unfilled_sudoku_board = sudoku_board.unfilled_sudoku_board
+# unfilled_sudoku_board = [[0, 5, 4, 1, 0, 0, 9, 0, 0],
+# [0, 0, 7, 9, 3, 8, 5, 0, 2],
+# [0, 2, 9, 4, 0, 5, 7, 0, 3],
+# [4, 3, 8, 0, 7, 6, 0, 0, 5],
+# [0, 0, 2, 0, 5, 0, 6, 3, 7],
+# [7, 0, 0, 0, 9, 1, 0, 2, 0],
+# [0, 4, 6, 5, 0, 0, 0, 7, 1],
+# [5, 0, 0, 7, 0, 2, 3, 0, 0],
+# [0, 7, 0, 6, 1, 0, 8, 0, 0]
+#  ]
 sudoku_solver = SudokuSolver(unfilled_sudoku_board)
 
 print('[INFO]: Filled Sudoku')
@@ -294,7 +344,6 @@ sudoku_solver.AlgorithmRun()
 #     for row in range(len(selected_list[idx])):
 #         print(selected_list[idx][row])
 #     print('\n')
-
 
 
 if __name__ == '__main__':
