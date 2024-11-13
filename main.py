@@ -5,10 +5,12 @@ import copy
 class SudokuSolver:
     # Sudoku configuration
     SUDOKU_SIZE = 9
+    # Solver configuration
+    GENERATION_RESET_MODE = 0
     # Algorithm configuration
     HEURISTIC_GOAL = SUDOKU_SIZE * SUDOKU_SIZE * 3
     MUTATION_RATE = 0.2
-    POPULATION_NUM = 4096
+    POPULATION_NUM = 2048
     TOURNAMENT_SIZE = 2
     # Deep configuration
     GENERATION_LIMIT = 1000
@@ -20,71 +22,108 @@ class SudokuSolver:
         self.generation_count = 0
         self.highest_score_record = 0
         self.highest_score_mat = [[0 for _ in range(self.SUDOKU_SIZE)] for _ in range(self.SUDOKU_SIZE)]
+        self.prev_highest_score_record = 0
+        self.prev_highest_score_mat = [[0 for _ in range(self.SUDOKU_SIZE)] for _ in range(self.SUDOKU_SIZE)]
 
     # Tai
     def AlgorithmRun(self):
-        # Initial population phase
-        self.InitialPopulationGenerator()
+        generation_reset_limit = self.GENERATION_RESET_MODE*100 + 1
+        for i in range(generation_reset_limit):
+            # Clear data
+            self.ClearBuffer()
 
-        # Check if population list has the goal
-        for idx in range(0, self.POPULATION_NUM):
-            # Record highest score
-            if self.HeuristicFunction(self.ppl_list[idx]) > self.highest_score_record:
-                self.highest_score_record = self.HeuristicFunction(self.ppl_list[idx])
-                self.highest_score_mat = copy.deepcopy(self.ppl_list[idx])
-            if self.HeuristicFunction(self.ppl_list[idx]) == self.HEURISTIC_GOAL:
-                print(f'[INFO]: Found the goal at {self.generation_count}th')
-                self.PrintInfo()
-                return
-        while True:
-            if self.generation_count >= self.GENERATION_LIMIT:
-                print(f'[INFO]: The number of generations is exceed limitation')
-                self.PrintInfo()
-                return
-            # Selection phase
-            sel_list = self.SelectionFunction()
-
-            # Crossover phase
-            cross_list = self.CrossoverFunction(sel_list)
-
-            # Mutation phase
-            for idx in range(0, self.POPULATION_NUM):
-                cross_list[idx] = self.MutationFunction(cross_list[idx])
-            self.ppl_list = cross_list
-
+            # Initial population phase
+            self.InitialPopulationGenerator()
             # Check if population list has the goal
-            for idx in range(self.POPULATION_NUM):
+            for idx in range(0, self.POPULATION_NUM):
                 # Record highest score
                 if self.HeuristicFunction(self.ppl_list[idx]) > self.highest_score_record:
+                    self.prev_highest_score_record = self.highest_score_record
+                    self.prev_highest_score_mat = copy.deepcopy(self.highest_score_mat)
                     self.highest_score_record = self.HeuristicFunction(self.ppl_list[idx])
                     self.highest_score_mat = copy.deepcopy(self.ppl_list[idx])
-                # Check goal state
                 if self.HeuristicFunction(self.ppl_list[idx]) == self.HEURISTIC_GOAL:
                     print(f'[INFO]: Found the goal at {self.generation_count}th')
                     self.PrintInfo()
                     return
-            self.generation_count += 1
+            while True:
+                if self.generation_count >= self.GENERATION_LIMIT:
+                    print(f'[INFO]: The number of generations is exceed limitation')
+                    self.PrintInfo()
+                    if self.GENERATION_RESET_MODE == 1:
+                        break
+                    else:
+                        return
+                # Selection phase
+                sel_list = self.SelectionFunction()
+
+                # Crossover phase
+                cross_list = self.CrossoverFunction(sel_list)
+
+                # Mutation phase
+                for idx in range(0, self.POPULATION_NUM):
+                    cross_list[idx] = self.MutationFunction(cross_list[idx])
+                self.ppl_list = cross_list
+
+                # Check if population list has the goal
+                for idx in range(self.POPULATION_NUM):
+                    # Record highest score
+                    if self.HeuristicFunction(self.ppl_list[idx]) > self.highest_score_record:
+                        self.prev_highest_score_record = self.highest_score_record
+                        self.prev_highest_score_mat = copy.deepcopy(self.highest_score_mat)
+                        self.highest_score_record = self.HeuristicFunction(self.ppl_list[idx])
+                        self.highest_score_mat = copy.deepcopy(self.ppl_list[idx])
+                    # Check goal state
+                    if self.HeuristicFunction(self.ppl_list[idx]) == self.HEURISTIC_GOAL:
+                        print(f'[INFO]: Found the goal at {self.generation_count}th')
+                        self.PrintInfo()
+                        return
+                self.generation_count += 1
 
     # Tai
     def InitialPopulationGenerator(self):
         for idx in range(0, self.POPULATION_NUM):
             ppl_mat = copy.deepcopy(self.mat)
-            for row_idx in range(0, self.SUDOKU_SIZE):
-                # Find all zero positions
-                zero_positions = [i for i, x in enumerate(ppl_mat[row_idx]) if x == 0]
-                # Find the numbers that have appeared (1 -> 9)
-                existing_numbers = set(ppl_mat[row_idx]) - {0}
-                # Find all missing numbers
-                missing_numbers = list(set(range(1, 10)) - existing_numbers)
-                # Select the number to fill in (randomly)
-                fill_num = random.randint(0, min(len(zero_positions), 2))
-                # fill_num = min(len(zero_positions), 9)
-                numbers_to_insert = random.sample(missing_numbers, fill_num)
-                positions_to_fill = random.sample(zero_positions, fill_num)
-                # Fill in
-                for pos, num in zip(positions_to_fill, numbers_to_insert):
-                    ppl_mat[row_idx][pos] = num
-            self.ppl_list.append(ppl_mat)
+            if idx % 2 == 0:
+                for row_idx in range(0, self.SUDOKU_SIZE):
+                    # Find all zero positions
+                    zero_positions = [i for i, x in enumerate(ppl_mat[row_idx]) if x == 0]
+                    # Find the numbers that have appeared (1 -> 9)
+                    existing_numbers = set(ppl_mat[row_idx]) - {0}
+                    # Find all missing numbers
+                    missing_numbers = list(set(range(1, 10)) - existing_numbers)
+                    # Select the number to fill in (randomly)
+                    fill_num = random.randint(0, min(len(zero_positions), 2))
+                    # fill_num = min(len(zero_positions), 9)
+                    numbers_to_insert = random.sample(missing_numbers, fill_num)
+                    positions_to_fill = random.sample(zero_positions, fill_num)
+                    # Fill in
+                    for pos, num in zip(positions_to_fill, numbers_to_insert):
+                        ppl_mat[row_idx][pos] = num
+                self.ppl_list.append(ppl_mat)
+            else:
+                for col_idx in range(0, self.SUDOKU_SIZE):
+                    # Find all zero positions in the column
+                    zero_positions = [row for row in range(self.SUDOKU_SIZE) if ppl_mat[row][col_idx] == 0]
+                    zero_count = len(zero_positions)
+                    # Find the number that have appeared
+                    existing_numbers = {ppl_mat[row][col_idx] for row in range(self.SUDOKU_SIZE) if ppl_mat[row][col_idx] != 0}
+                    # Zero position > 2
+                    if zero_count > 2:
+                        # Find all empty
+                        positions_to_replace = random.sample(zero_positions, 2)
+                        # Random number 1 -> 9 (not appear in the column) to insert
+                        numbers_to_insert = random.sample([num for num in range(1, 10) if num not in existing_numbers],
+                                                          2)
+                        for pos, num in zip(positions_to_replace, numbers_to_insert):
+                            ppl_mat[pos][col_idx] = num
+                    # 1 <= Zero positions <= 2
+                    elif 1 <= zero_count <= 2:
+                        # Random number 1 -> 9 (not appear in the column) to insert
+                        number_to_insert = random.choice([num for num in range(1, 10) if num not in existing_numbers])
+                        for pos in zero_positions:
+                            ppl_mat[pos][col_idx] = number_to_insert
+                self.ppl_list.append(ppl_mat)
 
     # Duong
     def HeuristicFunction(self, mat):
@@ -255,7 +294,19 @@ class SudokuSolver:
         print(f'[INFO]: Highest score matrix:')
         for row in range(len(self.highest_score_mat)):
             print(self.highest_score_mat[row])
+        print(f'[INFO]: Previous highest score record: {self.prev_highest_score_record}')
+        print(f'[INFO]: Previous highest score matrix:')
+        for row in range(len(self.prev_highest_score_mat)):
+            print(self.prev_highest_score_mat[row])
         print('\n')
+
+    def ClearBuffer(self):
+        self.ppl_list = []
+        self.generation_count = 0
+        self.highest_score_record = 0
+        self.highest_score_mat = [[0 for _ in range(self.SUDOKU_SIZE)] for _ in range(self.SUDOKU_SIZE)]
+        self.prev_highest_score_record = 0
+        self.prev_highest_score_mat = [[0 for _ in range(self.SUDOKU_SIZE)] for _ in range(self.SUDOKU_SIZE)]
 
 
 class SudokuGenerator:
@@ -302,7 +353,7 @@ class SudokuGenerator:
     def remove_numbers(self):
         tmp_board = [[0 for _ in range(9)] for _ in range(9)]
         for row in range(9):
-            num_to_remove = random.randint(4, 6)  # Số ô cần xóa trong hàng này
+            num_to_remove = random.randint(2, 5)  # Số ô cần xóa trong hàng này
             positions = random.sample(range(9), num_to_remove)  # Chọn vị trí ngẫu nhiên để xóa
             for col in range(0, 9):
                 if col in positions:
@@ -314,17 +365,17 @@ class SudokuGenerator:
 
 sudoku_board = SudokuGenerator()
 filled_sudoku_board = sudoku_board.filled_sudoku_board
-unfilled_sudoku_board = sudoku_board.unfilled_sudoku_board
-# unfilled_sudoku_board = [[0, 5, 4, 1, 0, 0, 9, 0, 0],
-# [0, 0, 7, 9, 3, 8, 5, 0, 2],
-# [0, 2, 9, 4, 0, 5, 7, 0, 3],
-# [4, 3, 8, 0, 7, 6, 0, 0, 5],
-# [0, 0, 2, 0, 5, 0, 6, 3, 7],
-# [7, 0, 0, 0, 9, 1, 0, 2, 0],
-# [0, 4, 6, 5, 0, 0, 0, 7, 1],
-# [5, 0, 0, 7, 0, 2, 3, 0, 0],
-# [0, 7, 0, 6, 1, 0, 8, 0, 0]
-#  ]
+# unfilled_sudoku_board = sudoku_board.unfilled_sudoku_board
+unfilled_sudoku_board = [[0, 0, 0, 6, 4, 0, 0, 0, 7],
+                         [0, 0, 0, 9, 7, 1, 0, 3, 2],
+                         [1, 0, 0, 2, 0, 3, 5, 0, 0],
+                         [5, 1, 0, 0, 6, 0, 7, 9, 8],
+                         [0, 0, 0, 5, 0, 9, 0, 0, 0],
+                         [9, 6, 4, 0, 3, 0, 0, 2, 5],
+                         [0, 0, 1, 8, 0, 6, 0, 0, 4],
+                         [3, 5, 0, 1, 9, 4, 0, 0, 0],
+                         [6, 0, 0, 0, 5, 7, 0, 0, 0]
+                         ]
 sudoku_solver = SudokuSolver(unfilled_sudoku_board)
 
 print('[INFO]: Filled Sudoku')
