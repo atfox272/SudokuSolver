@@ -6,14 +6,14 @@ class SudokuSolver:
     # Sudoku configuration
     SUDOKU_SIZE = 9
     # Solver configuration
-    GENERATION_RESET_MODE = 0
+    GENERATION_RESET_MODE = 1
     # Algorithm configuration
     HEURISTIC_GOAL = SUDOKU_SIZE * SUDOKU_SIZE * 3
-    MUTATION_RATE = 0.2
+    MUTATION_RATE = 0.1
     POPULATION_NUM = 2048
     TOURNAMENT_SIZE = 2
     # Deep configuration
-    GENERATION_LIMIT = 1000
+    GENERATION_LIMIT = 300
 
     def __init__(self, matrix):
         self.mat = matrix
@@ -33,7 +33,7 @@ class SudokuSolver:
             self.ClearBuffer()
 
             # Initial population phase
-            self.InitialPopulationGenerator()
+            self.InitialPopulation()
             # Check if population list has the goal
             for idx in range(0, self.POPULATION_NUM):
                 # Record highest score
@@ -81,49 +81,23 @@ class SudokuSolver:
                 self.generation_count += 1
 
     # Tai
-    def InitialPopulationGenerator(self):
+    def InitialPopulation(self):
         for idx in range(0, self.POPULATION_NUM):
             ppl_mat = copy.deepcopy(self.mat)
-            if idx % 2 == 0:
-                for row_idx in range(0, self.SUDOKU_SIZE):
-                    # Find all zero positions
-                    zero_positions = [i for i, x in enumerate(ppl_mat[row_idx]) if x == 0]
-                    # Find the numbers that have appeared (1 -> 9)
-                    existing_numbers = set(ppl_mat[row_idx]) - {0}
-                    # Find all missing numbers
-                    missing_numbers = list(set(range(1, 10)) - existing_numbers)
-                    # Select the number to fill in (randomly)
-                    fill_num = random.randint(0, min(len(zero_positions), 2))
-                    # fill_num = min(len(zero_positions), 9)
-                    numbers_to_insert = random.sample(missing_numbers, fill_num)
-                    positions_to_fill = random.sample(zero_positions, fill_num)
-                    # Fill in
-                    for pos, num in zip(positions_to_fill, numbers_to_insert):
-                        ppl_mat[row_idx][pos] = num
-                self.ppl_list.append(ppl_mat)
-            else:
-                for col_idx in range(0, self.SUDOKU_SIZE):
-                    # Find all zero positions in the column
-                    zero_positions = [row for row in range(self.SUDOKU_SIZE) if ppl_mat[row][col_idx] == 0]
-                    zero_count = len(zero_positions)
-                    # Find the number that have appeared
-                    existing_numbers = {ppl_mat[row][col_idx] for row in range(self.SUDOKU_SIZE) if ppl_mat[row][col_idx] != 0}
-                    # Zero position > 2
-                    if zero_count > 2:
-                        # Find all empty
-                        positions_to_replace = random.sample(zero_positions, 2)
-                        # Random number 1 -> 9 (not appear in the column) to insert
-                        numbers_to_insert = random.sample([num for num in range(1, 10) if num not in existing_numbers],
-                                                          2)
-                        for pos, num in zip(positions_to_replace, numbers_to_insert):
-                            ppl_mat[pos][col_idx] = num
-                    # 1 <= Zero positions <= 2
-                    elif 1 <= zero_count <= 2:
-                        # Random number 1 -> 9 (not appear in the column) to insert
-                        number_to_insert = random.choice([num for num in range(1, 10) if num not in existing_numbers])
-                        for pos in zero_positions:
-                            ppl_mat[pos][col_idx] = number_to_insert
-                self.ppl_list.append(ppl_mat)
+            for col_idx in range(0, self.SUDOKU_SIZE):
+                # Find all zero positions in the column
+                zero_positions = [row for row in range(self.SUDOKU_SIZE) if ppl_mat[row][col_idx] == 0]
+                zero_count = len(zero_positions)
+                # Find the number that have appeared
+                existing_numbers = {ppl_mat[row][col_idx] for row in range(self.SUDOKU_SIZE) if ppl_mat[row][col_idx] != 0}
+                # Find all empty
+                positions_to_replace = zero_positions
+                # Random number 1 -> 9 (not appear in the column) to insert
+                numbers_to_insert = random.sample([num for num in range(1, 10) if num not in existing_numbers],zero_count)
+                for pos, num in zip(positions_to_replace, numbers_to_insert):
+                    ppl_mat[pos][col_idx] = num
+                # 1 <= Zero positions <= 2
+            self.ppl_list.append(ppl_mat)
 
     # Duong
     def HeuristicFunction(self, mat):
@@ -184,25 +158,25 @@ class SudokuSolver:
             mat2 = population_list.pop(idx2)
 
             # Chọn ngẫu nhiên giữa cắt theo hàng hoặc cột
-            if random.random() < 0.5:
+            # if random.random() < 0.5:
                 # Cắt theo cột
-                crossover_point = random.choice([3, 6])
+            crossover_point = random.choice([3, 6])
 
-                # Tạo hai ma trận con mới
-                offspring1 = [row[:crossover_point] + row[crossover_point:] for row in mat1]
-                offspring2 = [row[:crossover_point] + row[crossover_point:] for row in mat2]
+            # Tạo hai ma trận con mới
+            offspring1 = [row[:crossover_point] + row[crossover_point:] for row in mat1]
+            offspring2 = [row[:crossover_point] + row[crossover_point:] for row in mat2]
 
-                # Hoán đổi các phần của hai ma trận
-                for i in range(self.SUDOKU_SIZE):
-                    offspring1[i] = mat1[i][:crossover_point] + mat2[i][crossover_point:]
-                    offspring2[i] = mat2[i][:crossover_point] + mat1[i][crossover_point:]
-            else:
-                # Cắt theo hàng
-                crossover_point = random.choice([3, 6])
+            # Hoán đổi các phần của hai ma trận
+            for i in range(self.SUDOKU_SIZE):
+                offspring1[i] = mat1[i][:crossover_point] + mat2[i][crossover_point:]
+                offspring2[i] = mat2[i][:crossover_point] + mat1[i][crossover_point:]
+            # else:
+            #     # Cắt theo hàng
+            #     crossover_point = random.choice([3, 6])
 
-                # Tạo hai ma trận con mới
-                offspring1 = mat1[:crossover_point] + mat2[crossover_point:]
-                offspring2 = mat2[:crossover_point] + mat1[crossover_point:]
+            #     # Tạo hai ma trận con mới
+            #     offspring1 = mat1[:crossover_point] + mat2[crossover_point:]
+            #     offspring2 = mat2[:crossover_point] + mat1[crossover_point:]
 
             # Thêm hai ma trận con mới vào danh sách dân số mới
             new_population.append(offspring1)
@@ -353,7 +327,8 @@ class SudokuGenerator:
     def remove_numbers(self):
         tmp_board = [[0 for _ in range(9)] for _ in range(9)]
         for row in range(9):
-            num_to_remove = random.randint(2, 5)  # Số ô cần xóa trong hàng này
+            num_to_remove = random.randint(4, 7)  # Số ô cần xóa trong hàng này
+            # num_to_remove = 5  # Số ô cần xóa trong hàng này
             positions = random.sample(range(9), num_to_remove)  # Chọn vị trí ngẫu nhiên để xóa
             for col in range(0, 9):
                 if col in positions:
@@ -365,17 +340,17 @@ class SudokuGenerator:
 
 sudoku_board = SudokuGenerator()
 filled_sudoku_board = sudoku_board.filled_sudoku_board
-# unfilled_sudoku_board = sudoku_board.unfilled_sudoku_board
-unfilled_sudoku_board = [[0, 0, 0, 6, 4, 0, 0, 0, 7],
-                         [0, 0, 0, 9, 7, 1, 0, 3, 2],
-                         [1, 0, 0, 2, 0, 3, 5, 0, 0],
-                         [5, 1, 0, 0, 6, 0, 7, 9, 8],
-                         [0, 0, 0, 5, 0, 9, 0, 0, 0],
-                         [9, 6, 4, 0, 3, 0, 0, 2, 5],
-                         [0, 0, 1, 8, 0, 6, 0, 0, 4],
-                         [3, 5, 0, 1, 9, 4, 0, 0, 0],
-                         [6, 0, 0, 0, 5, 7, 0, 0, 0]
-                         ]
+unfilled_sudoku_board = sudoku_board.unfilled_sudoku_board
+# unfilled_sudoku_board = [[0, 0, 0, 6, 4, 0, 0, 0, 7],
+#                          [0, 0, 0, 9, 7, 1, 0, 3, 2],
+#                          [1, 0, 0, 2, 0, 3, 5, 0, 0],
+#                          [5, 1, 0, 0, 6, 0, 7, 9, 8],
+#                          [0, 0, 0, 5, 0, 9, 0, 0, 0],
+#                          [9, 6, 4, 0, 3, 0, 0, 2, 5],
+#                          [0, 0, 1, 8, 0, 6, 0, 0, 4],
+#                          [3, 5, 0, 1, 9, 4, 0, 0, 0],
+#                          [6, 0, 0, 0, 5, 7, 0, 0, 0]
+#                          ]
 sudoku_solver = SudokuSolver(unfilled_sudoku_board)
 
 print('[INFO]: Filled Sudoku')
